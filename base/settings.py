@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'core'
 ]
 
@@ -124,4 +125,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
+
 GEOCODE_API_KEY = 'AIzaSyBhVgsPQkWOY4xK_3PANZ64eEwdeGSx9pk'
+
+DEFAULT_LATITUDE = 37.7749
+DEFAULT_LONGITUDE = -122.4194
+DEFAULT_ZOOM = 12
