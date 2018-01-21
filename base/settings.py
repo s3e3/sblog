@@ -81,10 +81,10 @@ PRODUCTION = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'suhasdbinstance',
+        'NAME': 'ebdb',
         'USER': 'master',
         'PASSWORD': 'masterdbsuhas',
-        'HOST': 'suhasdbinstance.crx6bietwqko.ap-south-1.rds.amazonaws.com',
+        'HOST': 'aa9ggq5irshs8m.crx6bietwqko.ap-south-1.rds.amazonaws.com',
         'PORT': '5432',
     }
 }
