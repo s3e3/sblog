@@ -43,4 +43,3 @@ On https://sentry.io
 
 **Extra Time Required To incorporate following functionalities:**
 - **webpack:** bundle static files and js to improve load time of the website
-- **Test Cases**
