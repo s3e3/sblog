@@ -4,3 +4,4 @@ psycopg2==2.7.3 --no-binary psycopg2
 path.py==7.5
 requests[security]==2.18.4
 geopy
+raven==6.5.0
