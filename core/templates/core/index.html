@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>SF Movies</title>
+
+    <!-- CSS -->
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="overlay">
+        <input id="input-movie" class="controls input-box" data-bind="textInput: searchText, valueUpdate: afterkeydown" placeholder="Search by Movie Title"/>
+        <input id="input-location" class="controls input-box" type="text" placeholder="Search by Location"/>
+        <div data-bind="css: {disable: !showList}">
+            <ul data-bind="foreach: results" id="myUL">
+                <li data-bind="text: $data['key'], click: selectValue"></li>
+            </ul>
+        </div>
+    </div>
+    <div id="map"></div>
+
+    <script data-main="/static/main" src="/static/require.js"></script>
+    <script>
+        var GLOBAL = {
+            'DEFAULT_LATITUDE': "{{DEFAULT_LATITUDE}}",
+            'DEFAULT_LONGITUDE': "{{DEFAULT_LONGITUDE}}",
+            'DEFAULT_ZOOM': "{{DEFAULT_ZOOM}}",
+        }
+        require.config({
+            baseUrl: "/static",
+            paths: {
+                'knockout': 'knockout-3.3.0',
+                'async': 'async',
+                'jquery': 'jquery-1.7.1.min',
+            }
+        })
+    </script>
+</body>
+
+</html>

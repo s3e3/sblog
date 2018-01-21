@@ -1,17 +1,88 @@
 requirejs([
     "jquery",
     "knockout",
+    "api",
     "async!https://maps.googleapis.com/maps/api/js?key=AIzaSyBhVgsPQkWOY4xK_3PANZ64eEwdeGSx9pk&libraries=places",
     ], 
-function($, ko){
-    var Movie = function (params) {
-        var self = this;
-
-        //[{lat: 133123, lng:1232}]
-        self.locations = ko.observableArray(params.locations);
-        self.title = params.title;
+function($, ko, api){
+    var DEFAULT_POSITION = {
+        lat: Number(GLOBAL.DEFAULT_LATITUDE),
+        lng: Number(GLOBAL.DEFAULT_LONGITUDE),
     }
-    var KoModel = function () {
+    var map = new google.maps.Map(document.getElementById('map'), {
+        zoom: Number(GLOBAL.DEFAULT_ZOOM),
+        center: DEFAULT_POSITION,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+            mapTypeIds: ['roadmap']
+        }
+
+    });
+    var infowindow = new google.maps.InfoWindow({
+        content: '<p>No Content Yet</p>'
+    });
+
+    var MARKERS = [];
+    var ICONS = {};
+    var BOUNDS = new google.maps.LatLngBounds();
+
+    var COLORS = [
+        "blue", 'orange', 'pink', 'red', 'green', 'yellow', 'purple', 'brown'
+    ]
+    var INDEX = 0;
+    var CHAR_CODE = 65;
+
+    var eventListeners = {
+        MARKER_CLICK: function (movie_id, location_id, marker_index) {
+            return function(){
+                api.fetchFactsAtLocation(movie_id, location_id, function (template) {
+                    if(movie_id){
+                        template += '<br/><a href="#" id="show-all">show all movies at this location</a>'
+                    }
+                    infowindow.setContent(template)
+                    infowindow.open(map, MARKERS[marker_index]);  
+
+                    if(movie_id){
+                        var button = document.getElementById('show-all');
+
+                        google.maps.event.addDomListener(
+                            button, 'click', 
+                            eventListeners.MARKER_CLICK(undefined, location_id, marker_index)
+                        )
+                    }
+                })
+            }
+        },
+        PLACES_CHANGED: function () {
+            var places = searchBox.getPlaces();
+            if(places.length == 0){
+                alert("ERROR: No place found");
+            }
+            // just take the first place and show nearby movies
+            var place = places[0];
+
+            resetMap();
+            api.fetchNearByLocations(
+                place.geometry.location.lat(),
+                place.geometry.location.lng(),
+                function(locations){
+                    for(var i=0; i< locations.length; i++){
+                        putMarker(locations[i], true);
+                        updateMapViewPort();
+                        MARKERS[i].addListener(
+                            'click',
+                            eventListeners.MARKER_CLICK(undefined, locations[i].id, i)
+                        )
+                    }
+                }
+            );
+            
+        }
+    }
+    var TextModel = function () {
         var self = this;
 
         self.searchText = ko.observable().extend({rateLimit: 50});
@@ -34,7 +105,10 @@ function($, ko){
                 return;
             }
             self.results([]);
-            self.fetchResults(val);
+            //self.fetchResults(val);
+            api.fetchMovieList(val, function(results){
+                self.results(results);
+            })
         })
 
         self.showList = ko.observable(false);
@@ -51,129 +125,82 @@ function($, ko){
             self.results([]);
             self.searchText(data.key);
             self.selectedMovie(data); 
-            self.fetchMovieDetail(data);
-        }
+            //self.fetchMovieDetail(data);
+            resetMap();
+            api.fetchLocationsOfMovie(data.value, function (response) {
+               for(var i=0; i< response.locations.length; i++){
+                    var loc = response.locations[i];
 
-        self.fetchResults = function (search) {
-            $.ajax({
-                type: 'GET',
-                url: '/movie/list/?search=' + search,
-                success: function(response){
-                    self.results(response.results);
-                },
-                error: function(err) {
-                   console.log(err); 
-                }
-            })
-        }
-
-        self.movie = undefined;
-
-        self.fetchMovieDetail = function(data){
-            remove_markers();
-            $.ajax({
-                type: 'GET',
-                url: '/movie/' + data.value,
-                success: function(response) {
-                    put_markers(response.result.locations);
-                },
-                error: function(err){
-                    alert("Error Occured");
-                }
+                    putMarker(loc);
+                    updateMapViewPort();
+                    MARKERS[i].addListener(
+                        'click',
+                        eventListeners.MARKER_CLICK(response.id, loc.id, i)
+                    )
+               } 
             })
         }
     };
+    ko.applyBindings(TextModel);
 
-    ko.applyBindings(KoModel);
-
-    var default_position = {
-        lat: Number(GLOBAL.DEFAULT_LATITUDE),
-        lng: Number(GLOBAL.DEFAULT_LONGITUDE),
-    }
-    var map = new google.maps.Map(document.getElementById('map'), {
-        zoom: Number(GLOBAL.DEFAULT_ZOOM),
-        center: default_position,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-            mapTypeIds: ['roadmap']
+    var updateMapViewPort = function(){
+        map.setCenter(BOUNDS.getCenter());
+        map.fitBounds(BOUNDS);
+        if(MARKERS.length <= 3){
+            map.setZoom(13);
         }
+    }
 
-    });
-    var MARKERS = [];
-    var ICONS = {};
-    var BOUNDS = new google.maps.LatLngBounds();
-
-    var getIcon = function (key) {
+    var iconFile = function(index, char_code){
+        return '/static/markers/' + COLORS[index] + '_Marker' + String.fromCharCode(char_code) + '.png';
+    }
+    var getIcon = function (location, use_colors) {
+        var key = 0;
+        if(location.movies != undefined && location.movies.length > 0 && use_colors){
+            key = location.movies[0];
+        }
         if(ICONS[key] == undefined){
-            ICONS[key] = new google.maps.MarkerImage(
-                "http://www.googlemapsmarkers.com/v1/" + randomColor() + "/"
-            );
+            if(INDEX >= COLORS.length - 1){
+                CHAR_CODE++;
+                if(CHAR_CODE >= 90) CHAR_CODE = 65;
+                INDEX = INDEX % (COLORS.length - 1);
+            }
+            else{
+                INDEX++;
+            }
+            ICONS[key] = new google.maps.MarkerImage(iconFile(INDEX, CHAR_CODE));
         } 
         return ICONS[key];
     }
 
-    var reset_map = function () {
+    var resetMap = function () {
         BOUNDS = new google.maps.LatLngBounds();
-        map.setCenter(default_position);
+        map.setCenter(DEFAULT_POSITION);
         map.setZoom(Number(GLOBAL.DEFAULT_ZOOM));
-    }
-    var put_markers = function(locations){
-        for(var i=0; i< locations.length; i++){
-            var loc = locations[i];
-            var icon_key = 0;
-            var movies_len = 1;
-            if(loc.movies != undefined && loc.movies.length > 0){
-                icon_key = loc.movies[0].id;
-                movies_len = loc.movies.length;
-            }
-
-            MARKERS.push(
-                new google.maps.Marker({
-                    position: {
-                        lat: Number(locations[i].lat),
-                        lng: Number(locations[i].lng),
-                    },
-                    map: map,
-                    title: 'Hello World!',
-                    animation: google.maps.Animation.BOUNCE,
-                    icon: getIcon(icon_key),
-                })
-            )
-            BOUNDS.extend(MARKERS[i].getPosition());
-        }
-        map.setCenter(BOUNDS.getCenter());
-        map.fitBounds(BOUNDS);
-    }
-    var remove_markers = function(){
         for(var i=0; i< MARKERS.length; i++){
             MARKERS[i].setMap(null);
         }
-        if(MARKERS.length > 0){
-            MARKERS.length = 0;
-            reset_map();
-        }
+        MARKERS.length = 0;
     }
 
-    function randomColor() {
-        var color = Math.floor(0x1000000 * Math.random()).toString(16);
-        return ('000000' + color).slice(-6);
+    var putMarker = function (location, use_colors) {
+        var marker = new google.maps.Marker({
+            position: {
+                lat: Number(location.lat),
+                lng: Number(location.lng),
+            },
+            map: map,
+            title: 'Click To See The Details',
+            animation: google.maps.Animation.BOUNCE,
+            icon: getIcon(location, use_colors),
+        })
+        MARKERS.push(marker);
+        BOUNDS.extend(marker.getPosition());
+        return marker;
     }
 
     var input_location = document.getElementById('input-location');
-    var input_movie = document.getElementById('input-movie');
-
     var searchBox = new google.maps.places.SearchBox(input_location);
-
-    google.maps.event.addListener(searchBox, 'places_changed', function(){
-        var places = searchBox.getPlaces();
-        if(places.length == 0){
-            alert("ERROR: No place found");
-        }
-        // just take the first place and show nearby movies
-        var place = places[0];
-    });
+    google.maps.event.addListener(searchBox, 'places_changed', eventListeners.PLACES_CHANGED);
 
 })

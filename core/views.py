@@ -4,13 +4,17 @@ from __future__ import unicode_literals
 import json
 import re
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
 from django.conf import settings
 from django.views.generic.list import BaseListView
 from django.views.generic.detail import BaseDetailView
-
+from django.views.generic.edit import FormMixin
+from django.views.generic.base import View
+from django.template import Context, Template
+from django.template.loader import render_to_string
 from core import models as core_models
 from core import utils
+from core import forms
 
 
 # Create your views here.
@@ -28,24 +32,16 @@ def default_view(request):
 class MovieList(BaseListView):
     model = core_models.Movie
 
-    def _build_ts_query(self, search):
-        query = re.sub(r'[!\'()|&]', ' ', search).strip()
-        if query:
-            query = re.sub(r'\s+', ' & ', query)
-            query += ':*'
-        return query
-
     def get_queryset(self):
         search = self.request.GET.get('search')
         if not search:
             return super(MovieList, self).get_queryset()
 
-        # TODO: find out a way to do this in a generic and better way.
-        return self.model.objects.raw('''
-            SELECT id, title from core_movie 
-            WHERE to_tsvector(coalesce(title)) @@ to_tsquery('%s')
-        ''' % self._build_ts_query(search))
+        return self.model.objects.raw(
+            utils.get_raw_search_query(search)
+        )
 
+    @utils.require_AJAX
     def get(self, request, *args, **kargs):
         obj_list = self.get_queryset()
         return JsonResponse({
@@ -60,5 +56,58 @@ class MovieDetail(BaseDetailView):
     def get(self, request, *args, **kargs):
         obj = self.get_object()
         return JsonResponse({
-            'result': obj.mini_json()
+            'result': obj.mini_json(),
         })
+
+
+# Movie Facts at a given location
+# if 'movie_id' in get params then return all facts for that movie at that location
+# else return facts for all movies at that location
+class FactDetail(BaseDetailView):
+    model = core_models.Location
+
+    @utils.require_AJAX
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        movie_id = self.request.GET.get('movie_id')
+
+        if movie_id:
+            query = obj.movies.filter(id=movie_id)
+        else:
+            query = obj.movies.all()
+        
+        results = [{
+            'movie': movie.mini_json(),
+            'facts': [
+                fact.mini_json() for fact in movie.facts.filter(location=obj).exclude(verbose='')
+            ]
+        } for movie in query]
+
+        return JsonResponse({
+            'template': render_to_string(
+                'core/movie.html', 
+                {'results': results}
+            )
+        })
+
+
+# Return Nearby Locations given a location id
+# Radius is defined in settings file
+class NearByLocation(FormMixin, View):
+    form_class = forms.LatLngForm
+
+    def get_form_kwargs(self):
+        return {
+            'data': self.request.GET
+        }
+
+    @utils.require_AJAX
+    def get(self, request, *args, **kwargs):
+        form = self.get_form()
+
+        if form.is_valid():
+            return JsonResponse({
+                'results': [loc.mini_json() for loc in utils.nearby_locations(**form.cleaned_data)]
+            })
+        else:
+            return JsonResponse({'success': False})

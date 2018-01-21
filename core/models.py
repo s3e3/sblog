@@ -23,7 +23,9 @@ class Location(models.Model):
             'lng': self.longitude,
             'place_id': self.place_id,
             'address': self.address,
+            'movies': list(self.movies.values_list('id', flat=True))
         }
+
 
 
 class MovieFact(models.Model):
@@ -31,6 +33,11 @@ class MovieFact(models.Model):
     location = models.ForeignKey('Location')
     movie = models.ForeignKey('Movie', related_name='facts', null=True)
 
+    def mini_json(self):
+        return {
+            'id': self.id,
+            'fact': self.verbose,
+        }
 
 class Movie(models.Model):
     title = models.CharField(max_length=255, null=False, unique=True, db_index=True)

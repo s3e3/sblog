@@ -1,0 +1,21 @@
+{% for result in results %}
+<div style="width:100%;">
+    <strong style="color: #7060e6; font-size: 15px;">{{result.movie.title}}</strong>
+    <table style="width: 100%">
+        {% for key, value in result.movie.data.items%}
+            <tr>
+                <td style="font-size: 12px; float: left">{{key}}</td>
+                <td style="font-size: 11px; float: right; margin-left:10px;">{{value}}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <div>
+        {% for fact_data in result.facts %}
+            <p style="max-width: 450px;">{{fact_data.fact}}</p>
+        {% empty %}
+            <p style="color:#ff0000;">No interesting facts found at this location for the movie</p>
+        {% endfor %}
+    </div>
+</div>
+<hr/>
+{% endfor %}
