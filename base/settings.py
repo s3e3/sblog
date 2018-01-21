@@ -25,7 +25,7 @@ SECRET_KEY = '^fkq-7&ak@@^-q&!+rvmts)70xa+8&9eg)kwqzkh&1&_%f-ztm'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['ghule-suhas.ap-south-1.elasticbeanstalk.com']
 
 
 # Application definition
@@ -75,17 +75,35 @@ WSGI_APPLICATION = 'base.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
-DATABASES = {
+
+PRODUCTION = True
+
+PRODUCTION_DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.environ['RDS_DB_NAME'],
+        'USER': os.environ['RDS_USERNAME'],
+        'PASSWORD': os.environ['RDS_PASSWORD'],
+        'HOST': os.environ['RDS_HOSTNAME'],
+        'PORT': os.environ['RDS_PORT'],
+    }
+}
+
+LOCAL_DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'suhasdb',
-        'USER': 'postgres',
+        'USER': '',
         'PASSWORD': '',
         'HOST': '',
         'PORT': '',
     }
 }
 
+if 'RDS_DB_NAME' in os.environ:
+    DATABASES = PRODUCTION_DATABASES
+else:
+    DATABASES = LOCAL_DATABASES
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -123,6 +141,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
