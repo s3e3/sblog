@@ -99,7 +99,10 @@ function($, ko, api){
 
         self.trimmedText.subscribe(function(val) {
             if(val == self.oldSearchText()) return;
-            if(val == undefined || val == '') return;
+            if(val == undefined || val == ''){
+                self.results([]);
+                return;
+            }
             if(self.isJustSelected()){
                 self.isJustSelected(false);
                 return;

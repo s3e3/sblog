@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+import raven
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
+    'raven.contrib.django.raven_compat',
     'core'
 ]
 
@@ -53,6 +55,37 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'base.urls'
 
+RAVEN_CONFIG = {
+    'dsn': 'https://be0eebcfa9a447e291a2a63beb52a5cb:e61887bc8eb34dd6bbd5937a09dfd479@sentry.io/275171',
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'null': {
+            'level': 'DEBUG',
+            'class': 'logging.NullHandler',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+        'sentry': {
+            'level': 'ERROR',
+            'class': (
+                'raven.contrib.django.raven_compat.handlers.SentryHandler'
+            ),
+        },
+    },
+    'loggers':{
+        '': {
+            'handlers': ['console', 'sentry'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    }
+ }
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
