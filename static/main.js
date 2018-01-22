@@ -149,7 +149,7 @@ function($, ko, api){
     var updateMapViewPort = function(){
         map.setCenter(BOUNDS.getCenter());
         map.fitBounds(BOUNDS);
-        if(MARKERS.length <= 3){
+        if(MARKERS.length <= 3 && map.getZoom() > 13){
             map.setZoom(13);
         }
     }
